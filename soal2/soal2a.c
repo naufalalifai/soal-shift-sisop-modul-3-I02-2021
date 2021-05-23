@@ -4,11 +4,11 @@
 #include <unistd.h>
 
 void main() {
-    // key_t key = 1234;
-    // int *value;
+    key_t key = 1234;
+    int *value;
 
-    // int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
-    // value = shmat(shmid, NULL, 0);
+    int shmid = shmget(key, sizeof(int), IPC_CREAT | 0666);
+    value = shmat(shmid, NULL, 0);
 
     int matrix1[4][3], matrix2[3][6], multires[4][6];
     int i, j, k, res = 0;
@@ -45,9 +45,9 @@ void main() {
         printf("\n");
     }
 
-    // sleep(5);
+    sleep(5);
 
-    // shmdt(value);
-    // shmctl(shmid, IPC_RMID, NULL);
+    shmdt(value);
+    shmctl(shmid, IPC_RMID, NULL);
 
 }
