@@ -5,16 +5,40 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
 #define PORT 8080
-  
-int main(int argc, char const *argv[]) {
 
+void clear_buffer(char* b) 
+{
+    int i;
+    for (i = 0; i < BUFSIZ ; i++)
+        b[i] = '\0';
+}
+
+void connect_to_server(int socketfd) 
+{
+    char buffer[BUFSIZ];
+    int valread;
+    
+    send(socketfd, "satu", strlen("satu"), 0);
+
+    fprintf(stdout, "Menunggu koneksi dari server...\n");
+    
+    clear_buffer(buffer);
+    valread = read(socketfd , buffer, BUFSIZ);
+    fprintf(stdout, "Terhubung dengan server\n");
+
+    send(socketfd, "Sukses lagi",strlen("Sukses lagi"),0);
+}
+
+int main(int argc, char const *argv[]) {
     struct sockaddr_in address;
-    int sock = 0, valread;
+    int new_socket = 0, valread;
     struct sockaddr_in serv_addr;
-    char *hello = "Hello from client";
-    char buffer[1024] = {0};
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    char buffer[BUFSIZ] = {0};
+    if ((new_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\n Socket creation error \n");
         return -1;
     }
@@ -29,48 +53,125 @@ int main(int argc, char const *argv[]) {
         return -1;
     }
   
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (connect(new_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
         printf("\nConnection Failed \n");
         return -1;
     }
 
-char input[10];
-char pass[100],user[100]
-while(1){
-input[10] = {0};
-pass[100] = {0};
-user[100] = {0};
+    connect_to_server(new_socket);
+    while(1)
+    {
+        char buffer[BUFSIZ], command[BUFSIZ];
+        printf("1. Login\n2. Register\n3. Logout\nCommand :\n");
+        scanf("%s", command);
+        if(strcmp(command,"login")==0)
+        {
+            send(new_socket,"login", strlen("login"),0);
+            char username[200];
+            char password[100];
+            printf("Username : ");
+            scanf("%s", username);
+            printf("Password : ");
+            scanf("%s", password);
+            strcat(username, ":");
+            strcat(username, password);
 
-Printf("Login / Register\n");
-scanf("%s",input);
-if(strcmp(input,"Login") == 0)
-{
-send(new_socket,"Login",strlen("Login"),0);
-printf("Username: \nPassword : ");
-scanf("%s",user);
-scanf("%s", pass);
-strcat(user,":");
-strcat(user,pass);
-send(new_socket , user , strlen(user), 0)
-read(new_socket, buffer, 1024);
-printf("%s\n",buffer);
-}
+            send(new_socket , username , strlen(username) , 0 );
+            clear_buffer(buffer);
+            valread = read(new_socket , buffer, BUFSIZ);
+            printf("%s\n",buffer);
 
-else if(strcmp(input,"Register") == 0)
-{
-send(new_socket,"Login",strlen("Login"),0);
-printf("Username: \nPassword : ");
-scanf("%s",user);
-scanf("%s", pass);
-strcat(user,":");
-strcat(user,pass);
-send(new_socket , user , strlen(user), 0)
-read(new_socket, buffer, 1024);
-printf("%s\n",buffer);
-}
+            if(strcmp(buffer,"Login Success")==0)
+            {
+                while(1)
+                {
+                    printf("\n1. Add Database\n2.Exit\nCommand : ");
+                    char command2[20];
+                    scanf("%s", command2);
+                    if(strcmp(command2,"add")==0)
+                    {
+                        // printf("Ini masuk add");
+                        char buffer[BUFSIZ];
+                        int valread;
+                        char pub[20];
+                        char tahun_pub[10];
+                        char path_file[50];
+                        char add_data[110];
+                        char len_data[20];
+                        char temp_files[BUFSIZ];
 
-else{
-printf("error");
-}
+                        send(new_socket, "add", strlen("add"), 0);
+
+                        clear_buffer(buffer);
+                        valread = read(new_socket, buffer, BUFSIZ);
+
+                        printf("Publisher: ");
+                        scanf("%s", pub);
+                        printf("Tahun Publikasi: ");
+                        scanf("%s", tahun_pub);
+                        printf("Filepath: ");
+                        scanf("%s", path_file);
+
+                        sprintf(add_data, "%s:%s:%s", path_file, pub, tahun_pub);
+
+                        send(new_socket, add_data, strlen(add_data), 0);
+                        
+                        clear_buffer(buffer);
+                        valread = read(new_socket, buffer,BUFSIZ);
+ 
+                        send(new_socket, "berhasil",strlen("berhasil"),0);
+                    
+                        FILE *fd;
+                        fd = fopen(path_file, "rb");
+
+                        while(fgets(temp_files, BUFSIZ, fd) != NULL) 
+                        {
+                            send(new_socket, temp_files, strlen(temp_files), 0);
+                            bzero(temp_files, BUFSIZ) ;
+                        }
+                        fclose(fd) ; 
+
+                        clear_buffer(buffer);
+                        valread = read(new_socket , buffer, BUFSIZ);
+
+                        if (strcmp(buffer, "complete") == 0) 
+                        {
+                            printf("Adding data complete\n");
+                        } 
+                        else 
+                        {
+                            printf("There's a problem adding data\n");
+                        }
+
+                    }
+                    
+                    else if(strcmp(command2,"exit")==0)
+                    {
+                        break;
+                    }
+                }
+            }   
+        }
+        else if(strcmp(command,"register")==0)
+        {
+            send(new_socket,"register", strlen("register"),0);
+            char username[200];
+            char password[100];
+            printf("Username : ");
+            scanf("%s", username);
+            printf("Password : ");
+            scanf("%s", password);
+            strcat(username, ":");
+            strcat(username, password);
+            send(new_socket , username , strlen(username) , 0 );
+            clear_buffer(buffer);
+            valread = read(new_socket , buffer, BUFSIZ);
+            printf("%s\n", buffer);
+        }
+        else if(strcmp(command,"logout")==0)
+        {
+            break;
+        }
+    }   
     return 0;
 }
